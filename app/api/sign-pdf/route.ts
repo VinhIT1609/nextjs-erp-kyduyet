@@ -71,10 +71,13 @@ export async function POST(req: Request) {
       throw new Error(`Cột FILE_PATH (Đường dẫn PDF gốc) của nhân viên này hiện đang bị trống (null) trong hệ thống Oracle Database.`);
     }
 
+    // Làm sạch dấu gạch chéo đầu chuỗi của pdf_file nếu có
+    const cleanPdfName = (pdf_url.startsWith("/") ? pdf_url.substring(1) : pdf_url).replace(/\\/g, "");
+    //const cleanPdfName = sanitizeFileName(pdf_url);
     // Xác định đường dẫn file PDF gốc ngoài public
-    const originalPdfPath = path.isAbsolute(pdf_url) 
-      ? path.normalize(pdf_url) 
-      : path.normalize(path.join(targetDir, pdf_url));
+    const originalPdfPath = path.isAbsolute(cleanPdfName) 
+      ? path.normalize(cleanPdfName) 
+      : path.normalize(path.join(targetDir, cleanPdfName));
 
     if (!fs.existsSync(originalPdfPath)) {
       throw new Error(`Tệp tin PDF gốc không tồn tại tại vị trí kho lưu trữ bảo mật: ${originalPdfPath}`);

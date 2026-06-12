@@ -157,6 +157,8 @@ export default function SignPage() {
 
         updatePdfView(result.pdf_base64);
         clearSign(); // Xóa sạch khung chữ ký sau khi hoàn thành
+        // 👉 F5 lại trang
+        window.location.reload();
       } else {
         alert("Lỗi từ máy chủ: " + (result.error || "Không thể xử lý chữ ký"));
       }
