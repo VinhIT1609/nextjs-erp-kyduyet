@@ -4,7 +4,7 @@ const ALGORITHM = 'aes-256-cbc';
 const SECRET_KEY = 'ERP_ORACLE_SIGN_CONTRACT_KEY_202'; // Khóa bí mật (32 ký tự)
 const IV = Buffer.alloc(16, 0); // IV cố định cho môi trường local
 
-const passwordRaw = "hr_new"; // Mật khẩu thô
+const passwordRaw = "noah_hr"; // Mật khẩu thô
 
 function encrypt(text) {
   const key = crypto.createHash('sha256').update(SECRET_KEY).digest();

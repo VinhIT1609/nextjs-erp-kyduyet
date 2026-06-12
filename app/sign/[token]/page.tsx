@@ -19,7 +19,7 @@ export default function SignPage() {
 
   // NÂNG CẤP: Tạo thêm một state để lưu đường dẫn ảo Blob URL cho iframe
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string>("");
-  
+
   const params = useParams();
   const token = typeof params.token === "string" ? params.token : "";
 
@@ -57,8 +57,8 @@ export default function SignPage() {
         window.innerWidth >= 1024
           ? window.innerWidth - 120
           : window.innerWidth >= 768
-          ? window.innerWidth - 80
-          : window.innerWidth - 40
+            ? window.innerWidth - 80
+            : window.innerWidth - 40
       );
     };
 
@@ -142,7 +142,7 @@ export default function SignPage() {
 
       if (result.success && result.pdf_base64) {
         alert("Ký hợp đồng thành công!");
-        
+
         // Giải phóng Blob URL cũ trước khi tạo cái mới
         if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
 
@@ -151,7 +151,7 @@ export default function SignPage() {
           ...prev,
           pdf_base64: result.pdf_base64
         }));
-        
+
         const newBlobUrl = convertBase64ToBlobUrl(result.pdf_base64);
         setPdfBlobUrl(newBlobUrl);
 
@@ -189,6 +189,7 @@ export default function SignPage() {
       if (result.success) {
         alert("Hệ thống đã ghi nhận lý do từ chối ký hợp đồng của bạn.");
         setRejectReason(""); // Reset ô nhập liệu
+        window.location.reload();
       } else {
         alert("Lỗi: " + result.error);
       }
@@ -248,29 +249,29 @@ export default function SignPage() {
 
       {/* HIỂN THỊ PDF BẰNG BLOB URL AN TOÀN */}
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
-      {pdfBlobUrl ? (
-        /* THAY IFRAME BẰNG OBJECT CỰC KỲ ỔN ĐỊNH */
-        <object
-          data={pdfBlobUrl}
-          type="application/pdf"
-          className="w-full h-[500px] md:h-[700px] lg:h-[900px]"
-        >
-          {/* Khung dự phòng hiển thị nếu trình duyệt chặn hoàn toàn render PDF inline */}
-          <div className="p-10 text-center text-gray-700 bg-gray-50">
-            <p className="mb-4 font-medium">Trình duyệt của bạn không hỗ trợ xem trực tiếp file PDF này.</p>
-            <a 
-              href={pdfBlobUrl} 
-              download={`${contract?.contract_no || 'hop_dong'}.pdf`}
-              className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-xl transition shadow-md"
-            >
-              Tải file PDF về xem trực tiếp
-            </a>
-          </div>
-        </object>
-      ) : (
-        <div className="p-10 text-center text-gray-500">Đang khởi tạo trình đọc file PDF...</div>
-      )}
-    </div>
+        {pdfBlobUrl ? (
+          /* THAY IFRAME BẰNG OBJECT CỰC KỲ ỔN ĐỊNH */
+          <object
+            data={pdfBlobUrl}
+            type="application/pdf"
+            className="w-full h-[500px] md:h-[700px] lg:h-[900px]"
+          >
+            {/* Khung dự phòng hiển thị nếu trình duyệt chặn hoàn toàn render PDF inline */}
+            <div className="p-10 text-center text-gray-700 bg-gray-50">
+              <p className="mb-4 font-medium">Trình duyệt của bạn không hỗ trợ xem trực tiếp file PDF này.</p>
+              <a
+                href={pdfBlobUrl}
+                download={`${contract?.contract_no || 'hop_dong'}.pdf`}
+                className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 rounded-xl transition shadow-md"
+              >
+                Tải file PDF về xem trực tiếp
+              </a>
+            </div>
+          </object>
+        ) : (
+          <div className="p-10 text-center text-gray-500">Đang khởi tạo trình đọc file PDF...</div>
+        )}
+      </div>
 
       {/* Vùng vẽ Chữ ký */}
       <div className="bg-white rounded-2xl shadow-lg p-3 md:p-5">
@@ -280,7 +281,7 @@ export default function SignPage() {
           penColor="#003366"
           canvasProps={{ width: canvasWidth, height: 220, className: "border-2 rounded-xl bg-white mb-4" }}
         />
-        
+
         <div className="mb-6" style={{ width: canvasWidth }}>
           <label className="block text-sm md:text-base font-semibold text-gray-700 mb-2">
             Lý do không ký hợp đồng
@@ -289,7 +290,7 @@ export default function SignPage() {
             placeholder="Nhập lý do không ký hợp đồng..."
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            className="w-full border-2 border-gray-300 rounded-xl p-3 text-gray-800 bg-gray-50 mb-5 outline-none focus:border-red-500" 
+            className="w-full border-2 border-gray-300 rounded-xl p-3 text-gray-800 bg-gray-50 mb-5 outline-none focus:border-red-500"
             rows={4}
           />
         </div>

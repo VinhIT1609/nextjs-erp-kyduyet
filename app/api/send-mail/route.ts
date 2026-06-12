@@ -4,7 +4,7 @@ import SMTPTransport from "nodemailer/lib/smtp-transport";
 import fs from "fs";
 import path from "path";
 import { createToken } from "@/lib/jwt";
-import { executeSql } from "@/lib/oracle"; 
+import { executeSql } from "@/lib/oracle";
 
 export async function POST(req: Request) {
   try {
@@ -15,23 +15,27 @@ export async function POST(req: Request) {
       employee_no,
       contract_no,
       contract_id,
-      pdf_file // Tên file hoặc đường dẫn tương đối gửi lên (VD: "demo.pdf" hoặc "/contracts/demo.pdf")
+      pdf_file, // Tên file hoặc đường dẫn tương đối gửi lên (VD: "demo.pdf" hoặc "/contracts/demo.pdf")
     } = body;
 
     // 1. Kiểm tra dữ liệu đầu vào bắt buộc
     if (!email || !contract_id || !employee_no || !pdf_file) {
-      throw new Error("Thiếu thông tin gửi mail bắt buộc (Email, Contract ID, Employee No hoặc File PDF).");
+      throw new Error(
+        "Thiếu thông tin gửi mail bắt buộc (Email, Contract ID, Employee No hoặc File PDF).",
+      );
     }
 
     // 2. 🌟 ĐÃ SỬA: XÁC ĐỊNH ĐƯỜNG DẪN FILE TỪ THƯ MỤC NGOÀI PUBLIC TỪ .ENV.LOCAL
-    const secureStorageDir = process.env.UPLOAD_DIR 
-      ? process.env.UPLOAD_DIR 
+    const secureStorageDir = process.env.UPLOAD_DIR
+      ? process.env.UPLOAD_DIR
       : path.join(process.cwd(), "storage", "PER_CONTRACT"); // Thư mục dự phòng nội bộ
 
     const targetDir = path.normalize(secureStorageDir);
 
     // Làm sạch dấu gạch chéo đầu chuỗi của pdf_file nếu có
-    const cleanPdfName = pdf_file.startsWith("/") ? pdf_file.substring(1) : pdf_file;
+    const cleanPdfName = pdf_file.startsWith("/")
+      ? pdf_file.substring(1)
+      : pdf_file;
 
     // Tính toán đường dẫn tuyệt đối trỏ tới kho lưu trữ ngoài
     const pdfPath = path.isAbsolute(cleanPdfName)
@@ -39,7 +43,9 @@ export async function POST(req: Request) {
       : path.normalize(path.join(targetDir, cleanPdfName));
 
     if (!fs.existsSync(pdfPath)) {
-      throw new Error(`Không tìm thấy file PDF gốc tại kho lưu trữ bảo mật ngoại vi: ${pdfPath}`);
+      throw new Error(
+        `Không tìm thấy file PDF gốc tại kho lưu trữ bảo mật ngoại vi: ${pdfPath}`,
+      );
     }
 
     // 3. Đọc dữ liệu file thành Buffer an toàn từ ổ đĩa ngoài public
@@ -47,16 +53,18 @@ export async function POST(req: Request) {
 
     // 4. 🌟 ĐÃ SỬA: LOẠI BỎ BIẾN GLOBAL NGUY HIỂM - TẠO TOKEN MÃ HÓA CHỨA BỘ KHÓA KÉP
     // Ép kiểu truyền vào đúng cấu trúc mã hóa bảo mật thời gian thực
-    const token = createToken({ 
-      contract_id: String(contract_id), 
-      employee_no: String(employee_no) 
+    const token = createToken({
+      contract_id: String(contract_id),
+      employee_no: String(employee_no),
     });
 
     // Cấu hình link dẫn đến trang ký tên của người dùng (Token tự mang thông tin bóc tách động)
     //const signUrl = `http://localhost:3000/sign/${token}`;
     // 🌟 ĐÃ SỬA: Tự động bóc tách domain hiện tại của server (Bất kể localhost hay domain máy chủ thật)
-    const { origin } = new URL(req.url); 
-    const signUrl = `${origin}/sign/${token}`;
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      `${req.headers.get("x-forwarded-proto") || "http"}://${req.headers.get("host")}`;
+    const signUrl = `${baseUrl}/sign/${token}`;
 
     // 5. Cấu hình dịch vụ gửi Email (Nodemailer)
     const transporter = nodemailer.createTransport({
@@ -67,8 +75,8 @@ export async function POST(req: Request) {
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSS, // Mã ứng dụng Gmail của bạn
-      }
-    }as SMTPTransport.Options);
+      },
+    } as SMTPTransport.Options);
 
     console.log("Đang tiến hành gửi email tới:", email);
 
@@ -105,28 +113,30 @@ export async function POST(req: Request) {
         {
           filename: `${contract_no}.pdf`,
           content: pdfBuffer,
-          contentType: "application/pdf"
-        }
-      ]
+          contentType: "application/pdf",
+        },
+      ],
     });
-    
+
     // 🌟 ĐÃ SỬA: Đồng bộ tên bảng PER_CONTRACT (Bỏ chữ S thừa ở cuối để tránh lỗi không tìm thấy bảng Oracle)
     await executeSql(
       "UPDATE PER_CONTRACT SET STATUS = 'SENT_MAIL_SUCCESS' WHERE FACT_NO = '0000' AND PNL_NO = :1 AND CONTRACT_NO = :2",
-      [employee_no, contract_id]
+      [employee_no, contract_id],
     );
 
     console.log(`[Thành công] Đã gửi mail thông báo gửi link ký tới: ${email}`);
     return NextResponse.json({
       success: true,
-      message: "Gửi mail thông báo ký hợp đồng và lưu vết Oracle thành công!"
+      message: "Gửi mail thông báo ký hợp đồng và lưu vết Oracle thành công!",
     });
-
   } catch (err: any) {
     console.error("❌ Lỗi gửi mail API:", err.message);
-    return NextResponse.json({
-      success: false,
-      error: err.message
-    }, { status: 400 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: err.message,
+      },
+      { status: 400 },
+    );
   }
 }

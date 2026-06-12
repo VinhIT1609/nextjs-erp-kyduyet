@@ -4,7 +4,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   experimental: {
     // Ép Next.js nạp oracledb trực tiếp từ node_modules bên ngoài môi trường, KHÔNG đóng gói cụm
-    serverComponentsExternalPackages: ['oracledb'],
+    serverComponentsExternalPackages: ["oracledb"],
   },
 };
+// module.exports = {
+//   allowedDevOrigins: ["192.168.1.113"],
+// };
 export default nextConfig;
