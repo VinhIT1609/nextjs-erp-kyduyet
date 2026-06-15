@@ -1,32 +1,39 @@
 import oracledb from "oracledb";
 import crypto from "crypto";
 
-// Đảm bảo driver chạy ở chế độ thuần JS (Thin mode), không cần cài Oracle Instant Client
-//oracledb.initOracleClient({ libDir: process.env.ORACLE_CLIENT_PATH});
-// ÉP BUỘC CHẠY THICK MODE CHO ORACLE 11G
-// ÉP BUỘC KÍCH HOẠT THICK MODE CHO ORACLE 11G
-// ÉP BUỘC CHẠY THICK MODE CHO ORACLE 11G (Cấu hình bản v6)
+// 🌟 1. XỬ LÝ ĐỘNG THICK MODE THEO MÔI TRƯỜNG (NÉ CRASH VERCEL)
 if (typeof window === "undefined") {
-  try {
-    // Gọi hàm initOracleClient tới thư mục Instant Client trên ổ F
-    oracledb.initOracleClient({ libDir: process.env.ORACLE_CLIENT_PATH });
-    console.log(
-      "🚀 [Oracle v6] Đã kích hoạt Thick Mode thành công với Instant Client!",
-    );
-  } catch (err: any) {
-    // Ngăn crash ứng dụng khi Next.js tự động quét lại file (Hot Reload)
-    if (
-      !err.message.includes("NJS-011") &&
-      !err.message.includes("already initialized")
-    ) {
-      console.error("❌ [Oracle v6] Lỗi nạp Instant Client DLL:", err.message);
+  // Chỉ nạp Instant Client khi KHÔNG chạy trên Vercel (Tức là đang chạy ở máy local Windows)
+  if (!process.env.VERCEL) {
+    try {
+      if (process.env.ORACLE_CLIENT_PATH) {
+        oracledb.initOracleClient({ libDir: process.env.ORACLE_CLIENT_PATH });
+        console.log(
+          "🚀 [Local Windows] Đã kích hoạt Thick Mode thành công với Instant Client!",
+        );
+      }
+    } catch (err: any) {
+      if (
+        !err.message.includes("NJS-011") &&
+        !err.message.includes("already initialized")
+      ) {
+        console.error(
+          "❌ [Local Windows] Lỗi nạp Instant Client DLL:",
+          err.message,
+        );
+      }
     }
+  } else {
+    // Khi chạy trên Vercel, driver tự động rơi về Thin Mode (Thuần JS)
+    console.log(
+      "☁️ [Vercel Cloud] Phát hiện môi trường Serverless. Tự động chạy Thin Mode.",
+    );
   }
 }
 
 console.log("📦 Driver Version:", oracledb.versionString);
 
-// ---- HÀM GIẢI MÃ MẬT KHẨU TỰ ĐỘNG ----
+// ---- HÀM GIẢI MÃ MẬT KHẨU TỰ ĐỘNG (Đã dọn dẹp log nhạy cảm) ----
 function decryptPassword(): string {
   try {
     const encryptedText = process.env.ORACLE_PASSWORD_ENCRYPTED || "";
@@ -34,45 +41,33 @@ function decryptPassword(): string {
       process.env.DB_CRYPTO_SECRET || "ERP_ORACLE_SIGN_CONTRACT_KEY_202";
 
     if (!encryptedText) {
-      console.warn(
-        "⚠️ Cảnh báo: Chưa cấu hình biến ORACLE_PASSWORD_ENCRYPTED trong .env.local",
-      );
+      // Trả về chuỗi rỗng khi Next.js quét file lúc build hoặc thiếu biến
       return "";
     }
-    console.log(">>>encryptedText", encryptedText);
+
     const algorithm = "aes-256-cbc";
-    const iv = Buffer.alloc(16, 0); // Khởi tạo IV trùng khớp với công cụ mã hóa
-    // Chuẩn hóa key thành 32 bytes
+    const iv = Buffer.alloc(16, 0);
     const key = crypto.createHash("sha256").update(secretKey).digest();
     const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    //const decipher = crypto.createDecipheriv(algorithm, Buffer.from(secretKey), iv);
+
     let decrypted = decipher.update(encryptedText, "hex", "utf8");
     decrypted += decipher.final("utf8");
 
-    console.log("Connect User:", process.env.ORACLE_USER);
-    console.log("Connect Password:", decrypted);
-    console.log("Connect String:", process.env.ORACLE_CONN_STR);
+    // Chỉ hiển thị log kỹ thuật an toàn, ĐÃ XÓA dòng log Connect Password thô để bảo mật ERP
+    console.log(
+      "🔒 [Security] Giải mã cấu hình thành công cho User:",
+      process.env.ORACLE_USER,
+    );
+    console.log("🔗 Connect String:", process.env.ORACLE_CONN_STR);
 
     return decrypted;
   } catch (error) {
     console.error(
-      "❌ Lỗi nghiêm trọng: Không thể giải mã mật khẩu cơ sở dữ liệu. Hãy kiểm tra lại cấu hình mật khẩu mã hóa hoặc khóa bí mật.",
+      "❌ Lỗi nghiêm trọng: Không thể giải mã mật khẩu cơ sở dữ liệu.",
     );
     return "";
   }
 }
-// ---- ĐỌC ĐỘNG TOÀN BỘ CẤU HÌNH TỪ FILE .ENV ----
-const dbConfig = {
-  user: process.env.ORACLE_USER,
-  password: decryptPassword(), // Tự động gọi giải mã mật khẩu thô để truyền vào driver
-  connectString: process.env.ORACLE_CONN_STR,
-};
-
-/*const dbConfig = await oracledb.createPool({
-  user: process.env.ORACLE_USER,
-  password: decryptPassword(), // Tự động gọi giải mã mật khẩu thô để truyền vào driver
-  connectString: process.env.ORACLE_CONN_STR,
-});*/
 
 interface GlobalWithOracle {
   oraclePool?: oracledb.Pool;
@@ -80,24 +75,29 @@ interface GlobalWithOracle {
 
 const globalPool = global as unknown as GlobalWithOracle;
 
+// 🌟 2. CHUYỂN TOÀN BỘ LOGIC KHỞI TẠO VÀO TRONG HÀM ĐỂ CHẠY LAZY-LOADING
 async function getPool(): Promise<oracledb.Pool> {
   if (!globalPool.oraclePool) {
-    // Kiểm tra an toàn trước khi khởi tạo kết nối
-    if (!dbConfig.user || !dbConfig.password || !dbConfig.connectString) {
+    // Thu thập cấu hình động tại thời điểm kết nối, tránh chạy global lúc build
+    const user = process.env.ORACLE_USER;
+    const password = decryptPassword();
+    const connectString = process.env.ORACLE_CONN_STR;
+
+    if (!user || !password || !connectString) {
       throw new Error(
-        "❌ Thiếu thông tin cấu hình kết nối Oracle Database trong file .env.local",
+        "❌ Thiếu thông tin cấu hình kết nối Oracle Database trong biến môi trường.",
       );
     }
 
     globalPool.oraclePool = await oracledb.createPool({
-      ...dbConfig,
-      poolMax: 2,
-      poolMin: 1,
+      user,
+      password,
+      connectString,
+      poolMax: 15, // Nâng pool lên để chịu tải khi sếp duyệt đồng thời qua Internet
+      poolMin: 2,
       poolIncrement: 1,
     });
-    console.log(
-      "=== Đã khởi tạo Oracle Connection Pool thành công từ biến môi trường ===",
-    );
+    console.log("=== Đã khởi tạo Oracle Connection Pool thành công ===");
   }
   return globalPool.oraclePool;
 }
@@ -117,6 +117,6 @@ export async function executeSql(
     });
     return result;
   } finally {
-    await connection.close(); // Luôn luôn giải phóng kết nối trả lại cho Pool kể cả khi lỗi
+    await connection.close(); // Giải phóng connection về pool
   }
 }
