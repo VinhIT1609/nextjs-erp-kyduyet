@@ -172,10 +172,13 @@ export async function POST(req: Request) {
     );
 
     // 5. PHẢN HỒI KẾT QUẢ ĐỒNG BỘ NGAY LẬP TỨC VỀ CHO ERP
-    return NextResponse.json({
-      success: true,
-      message: `Đồng bộ dữ liệu Oracle hoàn tất. Nhận mới: ${totalProcessed} bản ghi. Gửi lại: ${totalResent} bản ghi. Chặn trùng/Đang xử lý: ${totalSkipped} bản ghi.`,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: `Đồng bộ dữ liệu Oracle hoàn tất. Nhận mới: ${totalProcessed} bản ghi. Gửi lại: ${totalResent} bản ghi. Chặn trùng/Đang xử lý: ${totalSkipped} bản ghi.`,
+      },
+      { status: 200 },
+    );
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: err.message },
